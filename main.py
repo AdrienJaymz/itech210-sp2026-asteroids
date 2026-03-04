@@ -24,7 +24,12 @@ space_ship = pygame.transform.rotate(space_ship, -90)
 space_bg = pygame.image.load("images/bg.jpg")
 asteroid_1 = pygame.image.load("images/meteorBrown_big1.png")
 
-
+#game sounds
+gun_sound = pygame.mixer.Sound("sounds/lasergun.mp3")
+gun_sound.set_volume(0.3)  # Set the volume to 30%
+Background_music = pygame.mixer.Sound("sounds/background.mp3")
+Background_music.set_volume(0.8)  # Set the volume to 80%
+Background_music.play(-1)  # Play the background music in a loop
 
 #fonts
 score_font = pygame.font.SysFont('arial',30)
@@ -34,17 +39,10 @@ go_font = pygame.font.SysFont("arial", 60)
 bg = pygame.transform.scale(space_bg, (WIDTH, HEIGHT))
 
 #player
-player_angle = -90
-player_size = (50,50)
-player_pos = [WIDTH//2, HEIGHT//2]
-player_hit_radius = 18
-player_speed = 20
-player_lives = 3
 player = {
     'angle': -90,
     'size': (50,50),
     'pos':[WIDTH//2, HEIGHT//2],
-    'hit': 18,
     'speed': 20,
     'lives':3,
     'radius': 19,
@@ -77,10 +75,10 @@ def update_player(dt):
     #get input and update position
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT ]:
-        player_angle -= angle * player_speed * dt
+        player_angle -= angle * player['speed'] * dt
     if keys[pygame.K_RIGHT ]:
-        player_angle += angle * player_speed * dt
-    
+        player_angle += angle * player['speed'] * dt
+
 def update_bullet_position(dt, bullet):
     rad = math.radians(bullet['angle'])
     dx = math.cos(rad) * bullet['speed'] * dt
@@ -103,9 +101,9 @@ def update_asteroid_position(dt, asteroid):
     asteroid['pos'][1] += dy
 
 def draw_player(screen):
-    player_sprite = pygame.transform.scale(space_ship, player_size)
+    player_sprite = pygame.transform.scale(space_ship, player['size'])
     player_sprite = pygame.transform.rotate(player_sprite, player['angle']*-1)
-    player_rect = player_sprite.get_rect(center=player_pos)
+    player_rect = player_sprite.get_rect(center=player['pos'])
     screen.blit(player_sprite, player_rect)
 
 def draw_bullet(screen, bullet):
@@ -136,12 +134,13 @@ while running:
     
     #update player position
     if player_input[pygame.K_LEFT ]:
-        player['angle'] -= player_speed * dt
+        player['angle'] -= player['speed'] * dt
     if player_input[pygame.K_RIGHT ]:
-        player['angle'] += player_speed * dt
+        player['angle'] += player['speed'] * dt
     
     #spawn bullets
     if player_input[pygame.K_SPACE] and tick > bullet_last_fire + bullet_fire_rate:
+        gun_sound.play()  # Play the gun sound
         bullets.append({
             'pos': player['pos'].copy(),
             'angle': player['angle'],
@@ -150,10 +149,16 @@ while running:
         })
         bullet_last_fire = tick
 
-    #update bullet position
-    
+    #update bullet position 
+    if player_input[pygame.K_SPACE]:
+        for bullet in bullets:
+            update_bullet_position(dt, bullet)
+            
     #check for bullets off screen
-        
+    for bullet in bullets:
+        if check_offscreen(bullet):
+            bullets.remove(bullet)    
+    
     #spawn asteroids
     if tick > asteroid_last_spawn + asteroid_spawn_rate:
         pos = random.choice(asteroid_spawn_locations).copy()
@@ -168,9 +173,14 @@ while running:
         asteroid_last_spawn = tick
 
     #update asteroid position
+    for asteroid in asteroids:
+        update_asteroid_position(dt, asteroid)
 
     #check for asteroids off screen
-    
+    #for asteroid in asteroids:
+        #if check_offscreen(asteroid):
+            #asteroids.remove(asteroid)
+
     #check for collisions with asteroids
     for asteroid in asteroids:
         if math.dist(asteroid['pos'], player['pos']) < asteroid['radius'] + player['radius']:
@@ -197,9 +207,12 @@ while running:
     screen.blit(bg, (0,0))
 
     #draw bullets
+    for bullet in bullets:
+        draw_bullet(screen, bullet)
 
     #draw asteroids
-    
+    for asteroid in asteroids:
+        draw_asteroid(screen, asteroid)
 
     #draw player
     #if the player is in invincible state flicker the sprit
